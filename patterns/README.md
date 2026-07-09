@@ -49,3 +49,17 @@ adk run p01_single      # or chat in the terminal
 **How state passing works.** This pattern's key mechanic. The triager has `output_key="triage"`, which saves its reply into *session state* — a shared dict all agents in the run can see. The drafter's instruction contains the placeholder `{triage}`, which ADK fills in from that state right before calling the model. That `output_key` → `{placeholder}` pipe is how data moves between agents in ADK. Note every instruction ends with "Output ONLY..." — in a pipeline each output is consumed raw by the next stage, so meta-commentary ("Here are three options...") breaks things.
 
 **Try it.** Run `adk web`, pick `p02_sequential`, and send *"I've been charged twice this month and nobody answers my emails. This is unacceptable."* Then in a new session try *"Hey, how do I export my data to CSV?"* Same pipeline both times, but compare the triage JSON in the trace and watch the drafter's tone shift because of it.
+
+---
+
+## Pattern 3 — Parallel (`p03_parallel/`)
+
+**What it is.** Independent sub-agents work on sub-tasks *at the same time*, then a final agent gathers and merges their results. Use it when the branches genuinely don't need each other's output — researching N topics, reviewing something from N angles, querying N sources. Wall-clock time drops to the slowest branch instead of the sum of all of them.
+
+**The example.** A debate: an **optimist** lists the strongest arguments for the user's idea while a **skeptic** lists the strongest against — simultaneously, in isolation. A **synthesizer** then reads both and delivers a balanced verdict.
+
+**The key mechanic.** `ParallelAgent` runs its sub-agents concurrently, each writing to its own `output_key` (`pros`, `cons`). But parallel branches alone can't produce one answer — so the fan-out is wrapped in a `SequentialAgent` whose last step reads *both* keys (`{pros}`, `{cons}`) and merges them. This fan-out → gather shape is how virtually every parallel flow ends up looking, and it shows patterns are composable: Parallel nests inside Sequential.
+
+**Why isolation matters.** Because neither debater sees the other's arguments, you get two genuinely independent perspectives — the skeptic can't be swayed by the optimist. That's often the *reason* to go parallel, not just the speed.
+
+**Try it.** Run `adk web`, pick `p03_parallel`, and ask *"Should I quit my job to go all-in on my side project?"* In the trace, note that the optimist and skeptic requests fire at the same time, and check the synthesizer's request to see both lists injected where `{pros}` and `{cons}` were.
