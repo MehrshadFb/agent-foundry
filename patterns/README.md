@@ -37,3 +37,15 @@ adk run p01_single      # or chat in the terminal
 **How tools work.** A tool is just a Python function with type hints and a docstring. ADK converts that signature into a schema the model can see; when the model wants to use it, ADK runs the real function and feeds the result back. Same mechanics whether the tool adds two numbers or queries a database.
 
 **Try it.** Run `adk web`, pick `p01_single`, and ask *"what is (3 + 4) * 5?"*. In the trace view you'll see the model call `add(3, 4)`, get `7`, call `multiply(7, 5)`, get `35`, and only then write its answer — two tool calls it chained on its own, without being told the order.
+
+---
+
+## Pattern 2 — Sequential (`p02_sequential/`)
+
+**What it is.** A pipeline: specialized agents run in a fixed order, and each one's output becomes the next one's input. The flow is decided by *you*, in code — no model chooses what runs next. Use it when the steps are always the same (draft → review → polish, extract → validate → format) and each step deserves its own focused prompt instead of one bloated mega-prompt.
+
+**The example.** A customer-support pipeline: a **triager** classifies the message (JSON: category, urgency, sentiment), a **drafter** writes a reply that adapts to that triage (angry customer → apologize first), and a **tone checker** does a final quality pass. Three genuinely different jobs — classification, conditional writing, quality control — each with its own tight prompt.
+
+**How state passing works.** This pattern's key mechanic. The triager has `output_key="triage"`, which saves its reply into *session state* — a shared dict all agents in the run can see. The drafter's instruction contains the placeholder `{triage}`, which ADK fills in from that state right before calling the model. That `output_key` → `{placeholder}` pipe is how data moves between agents in ADK. Note every instruction ends with "Output ONLY..." — in a pipeline each output is consumed raw by the next stage, so meta-commentary ("Here are three options...") breaks things.
+
+**Try it.** Run `adk web`, pick `p02_sequential`, and send *"I've been charged twice this month and nobody answers my emails. This is unacceptable."* Then in a new session try *"Hey, how do I export my data to CSV?"* Same pipeline both times, but compare the triage JSON in the trace and watch the drafter's tone shift because of it.
