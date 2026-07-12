@@ -63,3 +63,15 @@ adk run p01_single      # or chat in the terminal
 **Why isolation matters.** Because neither debater sees the other's arguments, you get two genuinely independent perspectives — the skeptic can't be swayed by the optimist. That's often the *reason* to go parallel, not just the speed.
 
 **Try it.** Run `adk web`, pick `p03_parallel`, and ask *"Should I quit my job to go all-in on my side project?"* In the trace, note that the optimist and skeptic requests fire at the same time, and check the synthesizer's request to see both lists injected where `{pros}` and `{cons}` were.
+
+---
+
+## Pattern 4 — Loop & Critique (`p04_loop_critique/`)
+
+**What it is.** A generator produces output; a critic judges it against explicit criteria. Fail → the feedback goes back to the generator and it tries again. Pass → the critic stops the loop. A `max_iterations` cap guarantees it always terminates. Use it when quality is checkable but hard to nail in one shot — and the criteria must be *concrete*: a critic told "make it better" loops forever.
+
+**The example.** A **generator** writes a product tagline; a strict **critic** checks it (under 8 words, memorable, no clichés). If the tagline passes, the critic calls the built-in `exit_loop` tool; otherwise it outputs one specific improvement, and the next round's generator has to address it.
+
+**Two new mechanics.** First, **`exit_loop`** — the loop's exit is a *tool call*, which means the critic (a model) decides when the work is good enough, while `max_iterations=3` keeps a hard ceiling on cost. Second, the **optional placeholder `{feedback?}`** — on the very first pass no feedback exists in state yet; the trailing `?` tells ADK "fill with blank if missing" instead of crashing. State also *overwrites* each round: `tagline` and `feedback` always hold the latest version, which is exactly what a refinement loop wants.
+
+**Try it.** Run `adk web`, pick `p04_loop_critique`, and describe a product: *"a coffee mug that keeps drinks hot for 6 hours"*. In the trace, count the generator→critic rounds — sometimes it passes on round one, sometimes you'll watch the critic reject, the feedback flow into the next generator prompt, and the tagline visibly improve. If it never passes, it stops at 3 rounds anyway.
