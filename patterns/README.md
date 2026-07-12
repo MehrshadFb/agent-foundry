@@ -75,3 +75,17 @@ adk run p01_single      # or chat in the terminal
 **Two new mechanics.** First, **`exit_loop`** — the loop's exit is a *tool call*, which means the critic (a model) decides when the work is good enough, while `max_iterations=3` keeps a hard ceiling on cost. Second, the **optional placeholder `{feedback?}`** — on the very first pass no feedback exists in state yet; the trailing `?` tells ADK "fill with blank if missing" instead of crashing. State also *overwrites* each round: `tagline` and `feedback` always hold the latest version, which is exactly what a refinement loop wants.
 
 **Try it.** Run `adk web`, pick `p04_loop_critique`, and describe a product: *"a coffee mug that keeps drinks hot for 6 hours"*. In the trace, count the generator→critic rounds — sometimes it passes on round one, sometimes you'll watch the critic reject, the feedback flow into the next generator prompt, and the tagline visibly improve. If it never passes, it stops at 3 rounds anyway.
+
+---
+
+## Pattern 5 — Coordinator (`p05_coordinator/`)
+
+**What it is.** A central agent reads the request and *decides at runtime* which specialist should handle it. This is the first pattern where control flow is a model decision, not code: Sequential/Parallel/Loop wire the flow in advance, the Coordinator picks a route per request. Use it when requests are heterogeneous and you can't know the path up front (support desk: billing vs bug vs how-to).
+
+**The example.** A tutoring receptionist with two specialists: a **math tutor** and a **writing tutor**. Ask a math question, the coordinator hands you to the math tutor; send a broken sentence, you land with the writing tutor.
+
+**The key mechanic.** Putting agents in `sub_agents` gives the coordinator a built-in `transfer_to_agent` tool. When it calls that tool, the conversation is *handed over* — the specialist talks to the user directly from then on; the coordinator is out of the picture. Routing runs on each specialist's **`description`** field, which makes descriptions load-bearing prompt text, not documentation. Vague descriptions → misroutes.
+
+**The tradeoff to notice.** Routing is probabilistic. The same request can route differently on different runs, and a request that fits neither specialist tests how well the coordinator's instruction holds ("don't answer yourself"). That flexibility-vs-predictability trade against Sequential is the core lesson.
+
+**Try it.** Run `adk web`, pick `p05_coordinator`, and send *"what is 15% of 240?"* — in the trace you'll see the coordinator call `transfer_to_agent(agent_name='math_tutor')` before the tutor answers. New session, send *"can you fix this sentence: 'me and him goes to store yesterday'"* and watch it route the other way. Then probe the edge: *"what should I cook tonight?"* — neither specialist fits; does it stay a receptionist or try to be a chef?
