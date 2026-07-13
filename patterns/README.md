@@ -89,3 +89,15 @@ adk run p01_single      # or chat in the terminal
 **The tradeoff to notice.** Routing is probabilistic. The same request can route differently on different runs, and a request that fits neither specialist tests how well the coordinator's instruction holds ("don't answer yourself"). That flexibility-vs-predictability trade against Sequential is the core lesson.
 
 **Try it.** Run `adk web`, pick `p05_coordinator`, and send *"what is 15% of 240?"* — in the trace you'll see the coordinator call `transfer_to_agent(agent_name='math_tutor')` before the tutor answers. New session, send *"can you fix this sentence: 'me and him goes to store yesterday'"* and watch it route the other way. Then probe the edge: *"what should I cook tonight?"* — neither specialist fits; does it stay a receptionist or try to be a chef?
+
+---
+
+## Pattern 6 — Agent-as-Tool (`p06_agent_as_tool/`)
+
+**What it is.** A sub-agent wrapped so the parent can call it *like a function*: parent sends input, sub-agent returns its answer, parent keeps reasoning with the result. The direct contrast with the Coordinator is the whole point — **delegation transfers control** (the specialist takes over the conversation), **invocation keeps it** (the specialist answers the parent, never the user). Use it when the parent needs a specialist's *answer* mid-task, not a hand-off.
+
+**The example.** A **report writer** turns raw notes into a two-line status update. Line 1 comes from calling the **summarizer** agent as a tool; line 2 (the recommended next step) the parent decides itself — proof it's still in charge after the tool call.
+
+**The key mechanic.** `AgentTool(agent=summarizer)` in the parent's `tools` list. To the parent it looks exactly like `add()` did in pattern 1 — the difference is the "function body" is a whole model run. Two consequences worth noticing: the sub-agent only sees what's passed in as the tool argument (a context boundary — its own conversation, its own window), and its multi-step work collapses to a single result in the parent's context. That makes this the cleanest way to isolate a noisy sub-task.
+
+**Try it.** Run `adk web`, pick `p06_agent_as_tool`, and paste some messy notes: *"demo went well, latency 4s felt slow, 2 of 5 testers hit a login bug, everyone liked the new UI, marketing wants a launch date by Friday."* In the trace you'll see the parent call the `summarizer` tool, the summarizer's own model run nested inside it, and then — unlike pattern 5 — the **parent** produce the final answer. Compare the traces side by side: transfer ends with the specialist talking; agent-as-tool ends with the parent talking.
