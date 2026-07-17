@@ -1,4 +1,4 @@
-# Memory — sessions & state
+# Sessions, state & memory
 
 An LLM is stateless — every request starts from zero, and "memory" is whatever you put back into the prompt. ADK's answer is the **session**: a record of one conversation, holding its events (every message and tool call) and its **state** — a dict that agents and tools can read and write. This folder works through the three tiers of that memory, from shortest-lived to longest, one example each.
 
