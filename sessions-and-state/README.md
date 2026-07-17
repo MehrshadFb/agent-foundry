@@ -44,3 +44,15 @@ Prefixed keys work everywhere plain ones do — `tool_context.state["user:facts"
 **One dependency to understand.** "Persistent" is only as persistent as the *session service* storing it. `adk web` keeps sessions in a local SQLite file (`.adk/session.db`, gitignored), so user state survives new sessions and even restarts. In-memory services lose everything on process exit; production setups point at a real database. The prefix sets the scope — the service sets the durability.
 
 **Try it.** Run `adk web`, pick `s02_user_state`, and introduce yourself like in tier 1. Then click **+ New Session** and ask *"what's my name?"* — this time it knows. That one-line diff (`facts` → `user:facts`) is the entire difference between tiers 1 and 2.
+
+---
+
+## Tier 3 — Memory (`s03_memory/`)
+
+**What it is.** Tiers 1–2 store a dict you curate — small, structured, always in the prompt. Memory is different: an archive of **whole past conversations** that the agent *searches* when it needs to recall something. It scales where the facts-dict doesn't — you can't inject a hundred conversations into every prompt, but you can search them on demand. This is retrieval (RAG over your own history), not a bigger dict.
+
+**The example.** An assistant with two memory verbs. **Write:** when you ask it to remember the conversation, an `archive_conversation` tool calls `tool_context.add_session_to_memory()`, handing the whole session to the memory service. **Read:** when you ask about the past, it calls `load_memory` — a prebuilt ADK tool that takes a search query and returns matching snippets from archived sessions — and answers from what comes back.
+
+**The moving parts.** The `MemoryService` is a separate service from sessions, wired at runtime like the session service (the agent code never picks the backend). `adk web` wires an in-memory one — fine for the demo, wiped on restart; production uses a persistent, semantic backend (e.g. Vertex AI Memory Bank/RAG). Ingestion is *explicit*: nothing lands in memory unless something calls `add_session_to_memory` — here that's a user-triggered tool; real apps automate it (e.g. archive on session end). And note `load_memory` costs a tool call per lookup; ADK's `preload_memory` alternative auto-searches memory every turn instead — recall without asking, at the price of doing it always.
+
+**Try it.** Run `adk web`, pick `s03_memory`. Session 1: *"I'm planning a trip to Japan in October — Tokyo and Kyoto, mostly food and temples."* Then: *"please remember this conversation"* — watch `archive_conversation` fire. Click **+ New Session**: *"what did I tell you about my trip?"* — you'll see `load_memory(query='trip Japan')` (or similar — the model writes the query), the snippets coming back in the trace, and an answer built from them. Also try asking about something never discussed and check it admits the blank.
