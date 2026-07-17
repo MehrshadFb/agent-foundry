@@ -23,3 +23,24 @@ Run from this folder: `adk web`, then pick the example.
 **The limit (which motivates tier 2).** All of this lives in one session. Open a new session and the assistant knows nothing again — session state is short-term by design.
 
 **Try it.** Run `adk web`, pick `s01_session_state`, and say *"I'm Mesh, I'm learning agent engineering, and I like short answers."* Watch the trace: two or three `remember()` calls, and the State chip updating. Ask *"what should I build this weekend?"* — the answer should use what it knows. Then click **+ New Session** and ask *"what's my name?"* — gone. That's tier 1's boundary.
+
+---
+
+## Tier 2 — User state (`s02_user_state/`)
+
+**What it is.** State that belongs to the *user*, not the conversation. The code is tier 1's assistant with exactly one change: the state key is `"user:facts"` instead of `"facts"`. That prefix changes the scope — every session with the same `user_id` reads and writes the same value, so what the assistant learns in one conversation is already known in the next.
+
+**The key mechanic: prefixes.** A state key's prefix decides its lifetime:
+
+| Key | Scope |
+|-----|-------|
+| `facts` | this session only (tier 1) |
+| `user:facts` | all sessions of this user |
+| `app:facts` | all sessions of *all* users |
+| `temp:facts` | this turn only, never saved |
+
+Prefixed keys work everywhere plain ones do — `tool_context.state["user:facts"]` in tools, `{user:facts?}` in instructions.
+
+**One dependency to understand.** "Persistent" is only as persistent as the *session service* storing it. `adk web` keeps sessions in a local SQLite file (`.adk/session.db`, gitignored), so user state survives new sessions and even restarts. In-memory services lose everything on process exit; production setups point at a real database. The prefix sets the scope — the service sets the durability.
+
+**Try it.** Run `adk web`, pick `s02_user_state`, and introduce yourself like in tier 1. Then click **+ New Session** and ask *"what's my name?"* — this time it knows. That one-line diff (`facts` → `user:facts`) is the entire difference between tiers 1 and 2.
